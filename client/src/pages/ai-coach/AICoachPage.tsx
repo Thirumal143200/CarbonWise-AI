@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Send, Sparkles, BookOpen, Trash2, HelpCircle, Shield, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Brain, Send, Sparkles, HelpCircle, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 import { api } from '../../lib/api';
@@ -10,8 +10,33 @@ interface Message {
   timestamp: Date;
 }
 
+interface RecommendationItem {
+  title: string;
+  impact: string;
+  description: string;
+}
+
+interface WeeklyPlanDay {
+  day: string;
+  action: string;
+  impact: string;
+}
+
+interface BehavioralInsight {
+  pattern: string;
+  suggestion: string;
+  potentialSavingsKg: number;
+}
+
+interface RecommendationResult {
+  recommendations?: RecommendationItem[];
+  days?: WeeklyPlanDay[];
+  weeklyTotal?: string;
+  insights?: BehavioralInsight[];
+}
+
 interface RecommendationResponse {
-  recommendation: any;
+  recommendation: RecommendationResult;
   type: string;
 }
 
@@ -31,7 +56,7 @@ export function AICoachPage() {
   // Recommendation states
   const [selectedRecType, setSelectedRecType] = useState<'weekly_plan' | 'reduction_advice' | 'behavioral_insight'>('reduction_advice');
   const [recLoading, setRecLoading] = useState(false);
-  const [recommendationResult, setRecommendationResult] = useState<any>(null);
+  const [recommendationResult, setRecommendationResult] = useState<RecommendationResult | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -157,7 +182,7 @@ export function AICoachPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSendMessage} className="p-4 border-t border-surface-200 dark:border-surface-800 flex gap-3">
+          <form onSubmit={(e) => { void handleSendMessage(e); }} className="p-4 border-t border-surface-200 dark:border-surface-800 flex gap-3">
             <input
               type="text"
               placeholder="Ask anything about carbon footprints, reduction tips..."
@@ -187,7 +212,7 @@ export function AICoachPage() {
               ].map((item) => (
                 <button
                   key={item.type}
-                  onClick={() => setSelectedRecType(item.type as any)}
+                  onClick={() => setSelectedRecType(item.type as typeof selectedRecType)}
                   className={`w-full text-left p-4 rounded-xl border transition-all ${
                     selectedRecType === item.type
                       ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20'
@@ -201,7 +226,7 @@ export function AICoachPage() {
             </div>
 
             <button
-              onClick={handleGenerateRecommendation}
+              onClick={() => { void handleGenerateRecommendation(); }}
               disabled={recLoading}
               className="w-full btn-primary py-3 flex items-center justify-center gap-2"
             >
@@ -234,7 +259,7 @@ export function AICoachPage() {
                 {/* Structured recommendation responses */}
                 {selectedRecType === 'reduction_advice' && recommendationResult.recommendations && (
                   <div className="space-y-4">
-                    {recommendationResult.recommendations.map((rec: any, idx: number) => (
+                    {recommendationResult.recommendations.map((rec, idx) => (
                       <div key={idx} className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/40 border border-surface-200/50 dark:border-surface-700/50">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-bold text-sm">{rec.title}</h4>
@@ -251,7 +276,7 @@ export function AICoachPage() {
                 {selectedRecType === 'weekly_plan' && recommendationResult.days && (
                   <div className="space-y-4">
                     <p className="text-xs text-surface-500">Weekly Target Reduction: {recommendationResult.weeklyTotal}</p>
-                    {recommendationResult.days.map((d: any, idx: number) => (
+                    {recommendationResult.days.map((d, idx) => (
                       <div key={idx} className="flex gap-4 p-3 rounded-lg bg-surface-50 dark:bg-surface-800/40">
                         <span className="font-bold text-sm text-emerald-500 min-w-16">{d.day}</span>
                         <div>
@@ -265,7 +290,7 @@ export function AICoachPage() {
 
                 {selectedRecType === 'behavioral_insight' && recommendationResult.insights && (
                   <div className="space-y-4">
-                    {recommendationResult.insights.map((ins: any, idx: number) => (
+                    {recommendationResult.insights.map((ins, idx) => (
                       <div key={idx} className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/40">
                         <h4 className="font-bold text-xs text-surface-800 dark:text-white mb-1">Pattern: {ins.pattern}</h4>
                         <p className="text-xs text-surface-600 dark:text-surface-400 mb-2">{ins.suggestion}</p>
@@ -277,7 +302,7 @@ export function AICoachPage() {
                   </div>
                 )}
 
-                {!['reduction_advice', 'weekly_plan', 'behavioral_insight'].includes(selectedRecType) || !recommendationResult.insights && !recommendationResult.days && !recommendationResult.recommendations && (
+                {!recommendationResult.insights && !recommendationResult.days && !recommendationResult.recommendations && (
                   <pre className="p-4 bg-surface-900 text-green-400 rounded-xl text-xs overflow-x-auto">
                     {JSON.stringify(recommendationResult, null, 2)}
                   </pre>

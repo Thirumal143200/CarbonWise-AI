@@ -31,8 +31,18 @@ export function GoalsPage() {
         setLoading(false);
       }
     }
-    fetchGoals();
+    void fetchGoals();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
 
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,22 +192,27 @@ export function GoalsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-title"
               className="glass-card p-6 w-full max-w-md bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 space-y-6"
             >
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold flex items-center gap-2">
+                <h2 id="modal-title" className="text-xl font-bold flex items-center gap-2">
                   <Target className="w-5 h-5 text-emerald-500" />
                   <span>Set New Target Goal</span>
                 </h2>
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="text-surface-400 hover:text-surface-600"
+                  aria-label="Close modal"
                 >
                   ✕
                 </button>
               </div>
 
-              <form onSubmit={handleCreateGoal} className="space-y-4">
+              <form onSubmit={(e) => { void handleCreateGoal(e); }} className="space-y-4">
                 <div className="space-y-1">
                   <label className="input-label" htmlFor="goal-title">Goal Title</label>
                   <input

@@ -20,7 +20,7 @@ export interface RefreshTokenPayload {
  */
 export function generateAccessToken(payload: AccessTokenPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_ACCESS_EXPIRY as any,
+    expiresIn: env.JWT_ACCESS_EXPIRY as jwt.SignOptions['expiresIn'],
     issuer: 'carbonwise',
     audience: 'carbonwise-api',
   });
@@ -32,7 +32,7 @@ export function generateAccessToken(payload: AccessTokenPayload): string {
  */
 export function generateRefreshToken(payload: RefreshTokenPayload): string {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRY as any,
+    expiresIn: env.JWT_REFRESH_EXPIRY as jwt.SignOptions['expiresIn'],
     issuer: 'carbonwise',
     audience: 'carbonwise-api',
   });

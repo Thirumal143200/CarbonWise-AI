@@ -1,6 +1,8 @@
 import { FileText, Download, Sparkles, AlertCircle, Info } from 'lucide-react';
 import { useState } from 'react';
 
+import { api } from '../../lib/api';
+
 export function ReportsPage() {
   const [datePreset, setDatePreset] = useState<'7' | '30' | '90' | 'custom'>('30');
   const [from, setFrom] = useState(() => {
@@ -27,24 +29,10 @@ export function ReportsPage() {
         finalTo = new Date().toISOString().split('T')[0]!;
       }
 
-      const token = localStorage.getItem('accessToken') || '';
-
-      // Try fetching or direct window.open
-      // Direct download via tag:
-      // Since it's a GET request, we can retrieve the PDF via fetch with Authorization headers, convert to blob, and save it!
-      // This is much safer and respects auth token!
-      
-      const response = await fetch(`http://localhost:3001/api/v1/reports/generate?from=${finalFrom}&to=${finalTo}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate report PDF');
-      }
-
-      const blob = await response.blob();
+      const response = await api.get<Response>(`/reports/generate?from=${finalFrom}&to=${finalTo}`);
+      // The api client returns the raw Response for non-JSON content types
+      const rawResponse = response as unknown as Response;
+      const blob = await rawResponse.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const tempLink = document.createElement('a');
       tempLink.href = blobUrl;
@@ -52,6 +40,7 @@ export function ReportsPage() {
       document.body.appendChild(tempLink);
       tempLink.click();
       document.body.removeChild(tempLink);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to download report PDF');
     } finally {
@@ -95,7 +84,7 @@ export function ReportsPage() {
                 ].map((item) => (
                   <button
                     key={item.value}
-                    onClick={() => setDatePreset(item.value as any)}
+                    onClick={() => setDatePreset(item.value as typeof datePreset)}
                     className={`py-2 text-xs font-semibold rounded-xl border transition-all ${
                       datePreset === item.value
                         ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -135,7 +124,7 @@ export function ReportsPage() {
           </div>
 
           <button
-            onClick={handleDownload}
+            onClick={() => { void handleDownload(); }}
             disabled={loading}
             className="w-full btn-primary py-3 flex items-center justify-center gap-2 mt-6"
           >

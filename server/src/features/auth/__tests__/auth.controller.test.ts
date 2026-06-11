@@ -271,7 +271,7 @@ describe('Auth Controller (Integration)', () => {
     it('should always return { success, data, error } shape on success', async () => {
       mockAuthService.login.mockResolvedValue({
         user: {
-          id: '1', email: 'a@b.c', name: 'N', avatarUrl: null,
+          id: '1', email: 'a@b.com', name: 'N', avatarUrl: null,
           ecoScore: 0, xp: 0, level: 1, leaderboardOptIn: false,
           createdAt: '', updatedAt: '',
         },
@@ -280,7 +280,7 @@ describe('Auth Controller (Integration)', () => {
 
       const res = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'a@b.c', password: 'x' })
+        .send({ email: 'a@b.com', password: 'x' })
         .expect(200);
 
       expect(res.body).toHaveProperty('success', true);

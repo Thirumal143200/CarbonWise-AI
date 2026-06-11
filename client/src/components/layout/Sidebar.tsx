@@ -46,7 +46,7 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    void navigate('/login');
   };
 
   const sidebarContent = (
@@ -117,7 +117,7 @@ export function Sidebar() {
 
         {/* Logout */}
         <button
-          onClick={handleLogout}
+          onClick={() => { void handleLogout(); }}
           className="nav-link w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
           aria-label="Log out"
         >

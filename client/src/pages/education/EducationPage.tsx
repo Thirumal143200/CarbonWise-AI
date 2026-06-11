@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Clock, BarChart, ChevronRight, HelpCircle, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BookOpen, Clock, ChevronRight, HelpCircle, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 import { api } from '../../lib/api';
@@ -33,7 +33,7 @@ export function EducationPage() {
   // Selected Article Detail State
   const [selectedArticle, setSelectedArticle] = useState<ArticleDetail | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [_detailLoading, setDetailLoading] = useState(false);
 
   // Quiz submission state
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
@@ -53,7 +53,7 @@ export function EducationPage() {
         setLoading(false);
       }
     }
-    fetchArticles();
+    void fetchArticles();
   }, []);
 
   const handleSelectArticle = async (slug: string) => {
@@ -211,7 +211,7 @@ export function EducationPage() {
 
                       {!isAnswered ? (
                         <button
-                          onClick={() => handleSubmitQuizAnswer(q.id)}
+                          onClick={() => { void handleSubmitQuizAnswer(q.id); }}
                           disabled={selectedIdx === undefined || submittingQuiz[q.id]}
                           className="btn-primary py-2 px-5 text-xs self-start"
                         >
@@ -247,7 +247,7 @@ export function EducationPage() {
           {articles.map((article) => (
             <button
               key={article.id}
-              onClick={() => handleSelectArticle(article.slug)}
+              onClick={() => { void handleSelectArticle(article.slug); }}
               className="text-left glass-card p-6 flex flex-col justify-between hover:shadow-card-hover hover:border-surface-300 dark:hover:border-surface-700 transition-all cursor-pointer"
             >
               <div>

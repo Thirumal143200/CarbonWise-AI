@@ -5,17 +5,20 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "postbuild": "node copy-migrations.js",
     "start": "node dist/server.js",
     "test": "jest --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
     "test:watch": "jest --watch",
     "type-check": "tsc --noEmit",
     "db:migrate": "tsx src/database/migrate.ts",
-    "db:seed": "tsx src/database/seed.ts"
+    "db:migrate:prod": "node dist/database/migrate.js",
+    "db:seed": "tsx src/database/seed.ts",
+    "db:seed:prod": "node dist/database/seed.js"
   },
   "dependencies": {
     "@carbonwise/shared": "1.0.0",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.18.2",
@@ -27,7 +30,7 @@
     "pino": "^8.18.0",
     "pino-pretty": "^10.3.1",
     "resend": "^3.1.0",
-    "uuid": "^9.0.0",
+    "uuid": "^11.1.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {

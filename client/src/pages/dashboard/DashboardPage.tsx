@@ -61,7 +61,7 @@ export function DashboardPage() {
         setLoading(false);
       }
     }
-    fetchDashboard();
+    void fetchDashboard();
   }, []);
 
   if (loading) {

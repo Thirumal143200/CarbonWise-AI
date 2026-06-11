@@ -38,7 +38,7 @@ export function ChallengesPage() {
         setLoading(false);
       }
     }
-    fetchData();
+    void fetchData();
   }, []);
 
   const handleJoin = async (id: string) => {
@@ -158,7 +158,7 @@ export function ChallengesPage() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => handleJoin(c.id)}
+                      onClick={() => { void handleJoin(c.id); }}
                       className="btn-primary py-1.5 px-4 text-xs flex items-center gap-1"
                     >
                       <Play className="w-3 h-3" /> Join
@@ -227,7 +227,7 @@ export function ChallengesPage() {
                   </span>
                 ) : (
                   <button
-                    onClick={() => handleUpdateProgress(ac.challenge.id, ac.progressPct)}
+                    onClick={() => { void handleUpdateProgress(ac.challenge.id, ac.progressPct); }}
                     className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1"
                   >
                     <Sparkles className="w-3.5 h-3.5" /> Increment (+10%)

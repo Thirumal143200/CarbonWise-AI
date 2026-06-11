@@ -5,14 +5,12 @@ import type {
   SimulationAction,
   SimulationActionType,
 } from '@carbonwise/shared';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Zap,
-  TrendingDown,
   TreePine,
   Car,
   AlertCircle,
-  HelpCircle,
   Plus,
   Trash2,
   Play,
@@ -20,7 +18,7 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import { api } from '../../lib/api';
 
@@ -55,14 +53,17 @@ export function SimulatorPage() {
     setLoading(true);
     setError('');
     try {
-      const scenarios: SimulationScenario[] = selectedPresets.map((id) => {
-        const template = SIMULATION_TEMPLATES.find((t) => t.id === id);
-        return {
-          id: template.id,
-          name: template.title,
-          actions: template.actions,
-        };
-      });
+      const scenarios: SimulationScenario[] = selectedPresets
+        .map((id) => {
+          const template = SIMULATION_TEMPLATES.find((t) => t.id === id);
+          if (!template) return null;
+          return {
+            id: template.id,
+            name: template.title,
+            actions: template.actions,
+          };
+        })
+        .filter((s): s is SimulationScenario => s !== null);
 
       const res = await api.post<SimulationResponse>('/simulator', { scenarios });
       setResponse(res);
@@ -266,7 +267,7 @@ export function SimulatorPage() {
                 </div>
 
                 <button
-                  onClick={handlePresetSimulation}
+                  onClick={() => { void handlePresetSimulation(); }}
                   disabled={loading || selectedPresets.length === 0}
                   className="w-full btn-primary mt-4 flex items-center justify-center gap-2"
                 >
@@ -321,8 +322,9 @@ export function SimulatorPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Type */}
                         <div>
-                          <label className="input-label">Action Type</label>
+                          <label className="input-label" htmlFor={`action-type-${idx}`}>Action Type</label>
                           <select
+                            id={`action-type-${idx}`}
                             value={action.type}
                             onChange={(e) =>
                               updateCustomActionType(idx, e.target.value as SimulationActionType)
@@ -340,8 +342,9 @@ export function SimulatorPage() {
                         {action.type === 'switch_transport' && (
                           <>
                             <div>
-                              <label className="input-label">New Commute Mode</label>
+                              <label className="input-label" htmlFor={`new-mode-${idx}`}>New Commute Mode</label>
                               <select
+                                id={`new-mode-${idx}`}
                                 value={action.params.newMode || 'bus'}
                                 onChange={(e) =>
                                   updateCustomActionParams(idx, { newMode: e.target.value })
@@ -356,11 +359,12 @@ export function SimulatorPage() {
                               </select>
                             </div>
                             <div>
-                              <label className="input-label">
+                              <label className="input-label" htmlFor={`days-per-week-${idx}`}>
                                 Commute Days/Week: {action.params.daysPerWeek}
                               </label>
                               <input
                                 type="range"
+                                id={`days-per-week-${idx}`}
                                 min="1"
                                 max="7"
                                 value={action.params.daysPerWeek || 3}
@@ -378,8 +382,9 @@ export function SimulatorPage() {
                         {action.type === 'reduce_usage' && (
                           <>
                             <div>
-                              <label className="input-label">Subcategory</label>
+                              <label className="input-label" htmlFor={`subcategory-${idx}`}>Subcategory</label>
                               <select
+                                id={`subcategory-${idx}`}
                                 value={action.subcategory}
                                 onChange={(e) => {
                                   const next = [...customActions];
@@ -394,11 +399,12 @@ export function SimulatorPage() {
                               </select>
                             </div>
                             <div>
-                              <label className="input-label">
+                              <label className="input-label" htmlFor={`reduction-percent-${idx}`}>
                                 Reduction Percent: {action.params.reductionPercent}%
                               </label>
                               <input
                                 type="range"
+                                id={`reduction-percent-${idx}`}
                                 min="5"
                                 max="100"
                                 step="5"
@@ -416,8 +422,9 @@ export function SimulatorPage() {
 
                         {action.type === 'change_diet' && (
                           <div>
-                            <label className="input-label">New Diet Target</label>
+                            <label className="input-label" htmlFor={`new-diet-${idx}`}>New Diet Target</label>
                             <select
+                              id={`new-diet-${idx}`}
                               value={action.params.newDietType || 'vegetarian'}
                               onChange={(e) =>
                                 updateCustomActionParams(idx, { newDietType: e.target.value })
@@ -434,11 +441,12 @@ export function SimulatorPage() {
 
                         {action.type === 'reduce_consumption' && (
                           <div>
-                            <label className="input-label">
+                            <label className="input-label" htmlFor={`consumption-reduction-${idx}`}>
                               Reduction Percent: {action.params.reductionPercent}%
                             </label>
                             <input
                               type="range"
+                              id={`consumption-reduction-${idx}`}
                               min="5"
                               max="100"
                               step="5"
@@ -458,7 +466,7 @@ export function SimulatorPage() {
                 </div>
 
                 <button
-                  onClick={handleCustomSimulation}
+                  onClick={() => { void handleCustomSimulation(); }}
                   disabled={loading || customActions.length === 0}
                   className="w-full btn-primary flex items-center justify-center gap-2"
                 >

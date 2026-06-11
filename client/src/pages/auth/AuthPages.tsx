@@ -16,7 +16,7 @@ export function LoginPage() {
     e.preventDefault();
     try {
       await login(email, password);
-      navigate('/dashboard');
+      void navigate('/dashboard');
     } catch {
       // Error is set in store
     }
@@ -42,7 +42,7 @@ export function LoginPage() {
 
         {/* Form Card */}
         <div className="glass-card p-8">
-          <form onSubmit={handleSubmit} noValidate aria-label="Login form">
+          <form onSubmit={(e) => { void handleSubmit(e); }} noValidate aria-label="Login form">
             {error && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -159,7 +159,7 @@ export function SignupPage() {
     e.preventDefault();
     try {
       await signup(email, password, name);
-      navigate('/dashboard');
+      void navigate('/dashboard');
     } catch {
       // Error is set in store
     }
@@ -183,7 +183,7 @@ export function SignupPage() {
         </div>
 
         <div className="glass-card p-8">
-          <form onSubmit={handleSubmit} noValidate aria-label="Signup form">
+          <form onSubmit={(e) => { void handleSubmit(e); }} noValidate aria-label="Signup form">
             {error && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}

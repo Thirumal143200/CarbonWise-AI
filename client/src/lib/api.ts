@@ -1,6 +1,6 @@
 import type { ApiResponse, ApiErrorResponse } from '@carbonwise/shared';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE = (import.meta.env as Record<string, string | undefined>).VITE_API_URL || 'http://localhost:3001/api/v1';
 
 /**
  * Type-safe API client with automatic token management.
@@ -51,7 +51,7 @@ class ApiClient {
       return response as unknown as T;
     }
 
-    const data = await response.json();
+    const data: unknown = await response.json();
 
     if (!response.ok) {
       const errorResponse = data as ApiErrorResponse;
@@ -90,14 +90,21 @@ class ApiClient {
 }
 
 export class ApiError extends Error {
+  public statusCode: number;
+  public code: string;
+  public details?: { field: string; message: string }[];
+
   constructor(
     message: string,
-    public statusCode: number,
-    public code: string,
-    public details?: { field: string; message: string }[],
+    statusCode: number,
+    code: string,
+    details?: { field: string; message: string }[],
   ) {
     super(message);
     this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.code = code;
+    this.details = details;
   }
 }
 

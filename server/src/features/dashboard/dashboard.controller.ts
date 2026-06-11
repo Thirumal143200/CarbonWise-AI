@@ -67,8 +67,8 @@ export const overview = asyncHandler(async (req: Request, res: Response): Promis
     carbonRepo.getTotalEmissions(userId),
   ]);
 
-  const formattedBreakdown = breakdown.map((row: any) => ({
-    category: row.category,
+  const formattedBreakdown = breakdown.map((row: carbonRepo.CategorySummaryRow) => ({
+    category: row.category as 'transportation' | 'home' | 'lifestyle' | 'food',
     totalKg: parseFloat(String(row.total_kg)),
     percentage: annualTotal > 0 ? Math.round((parseFloat(String(row.total_kg)) / annualTotal) * 100) : 0,
   }));

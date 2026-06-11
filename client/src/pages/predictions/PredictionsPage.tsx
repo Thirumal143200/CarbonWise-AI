@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts';
 
 import { api } from '../../lib/api';
@@ -39,7 +38,7 @@ export function PredictionsPage() {
         setLoading(false);
       }
     }
-    fetchForecast();
+    void fetchForecast();
   }, [horizon]);
 
   return (

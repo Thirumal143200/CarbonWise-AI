@@ -51,7 +51,7 @@ export function createApp(): express.Application {
   app.set('trust proxy', 1);
 
   // ---- Health Check ----
-  app.get('/api/v1/health', (req: Request, res: Response, next) => {
+  app.get('/api/v1/health', (_req: Request, res: Response, next) => {
     Promise.resolve().then(async () => {
       const dbHealthy = await checkDatabaseHealth();
       const status = dbHealthy ? 200 : 503;

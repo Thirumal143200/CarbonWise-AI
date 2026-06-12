@@ -1,19 +1,19 @@
 import { CATEGORY_ICONS } from '@carbonwise/shared';
 import { motion } from 'framer-motion';
-import {
-  TrendingDown,
-  TrendingUp,
-  Leaf,
-  Flame,
-  Award,
-  Activity,
-  ArrowRight,
-} from 'lucide-react';
+import { TrendingDown, TrendingUp, Leaf, Flame, Award, Activity, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 
 import { api } from '../../lib/api';
@@ -25,7 +25,13 @@ interface DashboardData {
   monthly: { totalKg: number; changePercent: number; entryCount: number };
   annual: { totalKg: number; changePercent: number; entryCount: number };
   breakdown: { category: string; totalKg: number; percentage: number }[];
-  recentEntries: { id: string; category: string; subcategory: string; emissionsKg: number; entryDate: string }[];
+  recentEntries: {
+    id: string;
+    category: string;
+    subcategory: string;
+    emissionsKg: number;
+    entryDate: string;
+  }[];
   comparisonWithAverage: { userKg: number; nationalAverageKg: number; percentBelowAverage: number };
 }
 
@@ -51,7 +57,9 @@ export function DashboardPage() {
       try {
         const [overview, trends] = await Promise.all([
           api.get<DashboardData>('/dashboard/overview'),
-          api.get<{ dataPoints: { date: string; totalKg: number }[] }>('/dashboard/trends?period=monthly'),
+          api.get<{ dataPoints: { date: string; totalKg: number }[] }>(
+            '/dashboard/trends?period=monthly',
+          ),
         ]);
         setData(overview);
         setTrendData(trends.dataPoints);
@@ -66,7 +74,11 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96" role="status" aria-label="Loading dashboard">
+      <div
+        className="flex items-center justify-center h-96"
+        role="status"
+        aria-label="Loading dashboard"
+      >
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500" />
         <span className="sr-only">Loading dashboard...</span>
       </div>
@@ -122,7 +134,10 @@ export function DashboardPage() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div
+        variants={itemVariants}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -131,7 +146,9 @@ export function DashboardPage() {
                 <span className="text-sm font-medium text-surface-500 dark:text-surface-400">
                   {stat.label}
                 </span>
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-md`}>
+                <div
+                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-md`}
+                >
                   <Icon className="w-5 h-5 text-white" aria-hidden="true" />
                 </div>
               </div>
@@ -139,9 +156,11 @@ export function DashboardPage() {
                 <p className="text-2xl font-bold">{stat.value.toFixed(1)}</p>
                 <span className="text-sm text-surface-500 mb-0.5">kg CO₂</span>
               </div>
-              <div className={`flex items-center gap-1 text-sm font-medium ${
-                stat.change <= 0 ? 'text-emerald-600' : 'text-red-500'
-              }`}>
+              <div
+                className={`flex items-center gap-1 text-sm font-medium ${
+                  stat.change <= 0 ? 'text-emerald-600' : 'text-red-500'
+                }`}
+              >
                 {stat.change <= 0 ? (
                   <TrendingDown className="w-4 h-4" aria-hidden="true" />
                 ) : (
@@ -159,7 +178,11 @@ export function DashboardPage() {
         {/* Trend Chart */}
         <motion.div variants={itemVariants} className="lg:col-span-2 glass-card p-6">
           <h2 className="text-lg font-semibold mb-4">Emissions Trend</h2>
-          <div className="h-72" role="img" aria-label="Line chart showing daily carbon emissions trend">
+          <div
+            className="h-72"
+            role="img"
+            aria-label="Line chart showing daily carbon emissions trend"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData}>
                 <defs>
@@ -172,7 +195,7 @@ export function DashboardPage() {
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(d: string) => d.slice(5)}
+                  tickFormatter={(d: string) => (d ? d.slice(5) : '')}
                 />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
@@ -199,7 +222,11 @@ export function DashboardPage() {
         {/* Category Breakdown */}
         <motion.div variants={itemVariants} className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-4">Category Breakdown</h2>
-          <div className="h-52" role="img" aria-label="Pie chart showing carbon emissions by category">
+          <div
+            className="h-52"
+            role="img"
+            aria-label="Pie chart showing carbon emissions by category"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -224,8 +251,13 @@ export function DashboardPage() {
             {(data?.breakdown ?? []).map((cat, idx) => (
               <div key={cat.category} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} />
-                  <span className="capitalize">{CATEGORY_ICONS[cat.category] ?? '📊'} {cat.category}</span>
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
+                  />
+                  <span className="capitalize">
+                    {CATEGORY_ICONS[cat.category] ?? '📊'} {cat.category}
+                  </span>
                 </div>
                 <span className="font-medium">{cat.percentage}%</span>
               </div>

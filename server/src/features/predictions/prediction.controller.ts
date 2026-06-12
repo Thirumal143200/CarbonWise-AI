@@ -7,7 +7,7 @@ import type {
 } from '@carbonwise/shared';
 import type { Request, Response } from 'express';
 
-import { asyncHandler , AppError } from '../../middleware/error-handler.middleware';
+import { asyncHandler } from '../../middleware/error-handler.middleware';
 import { sendSuccess } from '../../utils/response';
 import * as carbonRepo from '../carbon/carbon.repository';
 
@@ -21,7 +21,9 @@ import * as carbonRepo from '../carbon/carbon.repository';
  * 4. Generate predictions with confidence intervals
  */
 
-function calculateSeasonalPatterns(dailyTotals: { date: string; total_kg: number }[]): SeasonalPattern[] {
+function calculateSeasonalPatterns(
+  dailyTotals: { date: string; total_kg: number }[],
+): SeasonalPattern[] {
   const byDayOfWeek: Record<number, number[]> = {};
   for (let i = 0; i < 7; i++) byDayOfWeek[i] = [];
 
@@ -33,9 +35,10 @@ function calculateSeasonalPatterns(dailyTotals: { date: string; total_kg: number
   return Array.from({ length: 7 }, (_, i) => {
     const values = byDayOfWeek[i] ?? [];
     const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-    const variance = values.length > 1
-      ? values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / (values.length - 1)
-      : 0;
+    const variance =
+      values.length > 1
+        ? values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / (values.length - 1)
+        : 0;
     return {
       dayOfWeek: i,
       averageKg: Math.round(avg * 1000) / 1000,
@@ -60,9 +63,8 @@ function generatePredictions(
   days: number,
 ): ForecastDataPoint[] {
   const lastTrend = trend.length > 0 ? trend[trend.length - 1]! : 5;
-  const trendSlope = trend.length > 1
-    ? (trend[trend.length - 1]! - trend[trend.length - 2]!) / lastTrend
-    : 0;
+  const trendSlope =
+    trend.length > 1 ? (trend[trend.length - 1]! - trend[trend.length - 2]!) / lastTrend : 0;
 
   const predictions: ForecastDataPoint[] = [];
 
@@ -74,11 +76,15 @@ function generatePredictions(
 
     // Combine trend + seasonal component
     const trendComponent = lastTrend * (1 + trendSlope * i * 0.01);
-    const predicted = Math.max(0, seasonal.averageKg > 0 ? seasonal.averageKg + trendComponent * 0.1 : trendComponent);
+    const predicted = Math.max(
+      0,
+      seasonal.averageKg > 0 ? seasonal.averageKg + trendComponent * 0.1 : trendComponent,
+    );
 
     // Confidence decreases with distance
     const distanceFactor = Math.max(0.3, 1 - (i / days) * 0.5);
-    const dataQuality = seasonal.stdDev > 0 ? Math.max(0.4, 1 - seasonal.stdDev / (seasonal.averageKg || 1)) : 0.5;
+    const dataQuality =
+      seasonal.stdDev > 0 ? Math.max(0.4, 1 - seasonal.stdDev / (seasonal.averageKg || 1)) : 0.5;
     const confidence = Math.round(distanceFactor * dataQuality * 100) / 100;
 
     const uncertainty = seasonal.stdDev * (1 + i * 0.05);
@@ -114,31 +120,71 @@ export const forecast = asyncHandler(async (req: Request, res: Response): Promis
     today.toISOString().split('T')[0]!,
   );
 
-  if (dailyTotals.length < 3) {
-    throw new AppError(400, 'INSUFFICIENT_DATA', 'Need at least 3 days of carbon data for forecasting. Keep logging your activities!');
+  const hasInsufficientData = dailyTotals.length < 3;
+  const originalDataPointsUsed = dailyTotals.length;
+
+  if (hasInsufficientData) {
+    // Pad the daily totals array to at least 3 elements using user average or default national baseline
+    const userAvg =
+      dailyTotals.length > 0
+        ? dailyTotals.reduce((sum, d) => sum + parseFloat(String(d.total_kg)), 0) /
+          dailyTotals.length
+        : 4700 / 365; // default baseline ~12.87 kg/day
+
+    const paddedTotals = [...dailyTotals];
+    const missingCount = 3 - paddedTotals.length;
+    for (let i = 1; i <= missingCount; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (i + paddedTotals.length));
+      const dateStr = d.toISOString().split('T')[0]!;
+      paddedTotals.push({
+        entry_date: dateStr,
+        total_kg: userAvg,
+      });
+    }
+    // Sort paddedTotals by date ASC
+    paddedTotals.sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+    dailyTotals.splice(0, dailyTotals.length, ...paddedTotals);
   }
 
-  const mappedTotals = dailyTotals.map((d) => ({ date: d.entry_date, total_kg: parseFloat(String(d.total_kg)) }));
+  const mappedTotals = dailyTotals.map((d) => ({
+    date: d.entry_date,
+    total_kg: parseFloat(String(d.total_kg)),
+  }));
   const seasonalPatterns = calculateSeasonalPatterns(mappedTotals);
   const values = mappedTotals.map((d) => d.total_kg);
   const smoothedTrend = exponentialSmoothing(values);
   const predictions = generatePredictions(seasonalPatterns, smoothedTrend, today, forecastDays);
 
-  const overallConfidence = predictions.reduce((sum, p) => sum + p.confidenceScore, 0) / predictions.length;
+  const overallConfidence = hasInsufficientData
+    ? 0.15
+    : predictions.reduce((sum, p) => sum + p.confidenceScore, 0) / predictions.length;
 
   const confidence: ConfidenceMetrics = {
     overall: Math.round(overallConfidence * 100) / 100,
-    dataPointsUsed: dailyTotals.length,
-    modelAccuracy: Math.round(Math.min(0.95, 0.5 + dailyTotals.length * 0.005) * 100) / 100,
+    dataPointsUsed: originalDataPointsUsed,
+    modelAccuracy: hasInsufficientData
+      ? 0.1
+      : Math.round(Math.min(0.95, 0.5 + dailyTotals.length * 0.005) * 100) / 100,
     factors: [
       {
         name: 'Data Volume',
-        impact: dailyTotals.length > 30 ? 'positive' : dailyTotals.length > 7 ? 'neutral' : 'negative',
-        description: `${dailyTotals.length} data points available`,
+        impact: hasInsufficientData
+          ? 'negative'
+          : dailyTotals.length > 30
+            ? 'positive'
+            : dailyTotals.length > 7
+              ? 'neutral'
+              : 'negative',
+        description: hasInsufficientData
+          ? `Insufficient data history (${originalDataPointsUsed} points). Fallback baseline model applied.`
+          : `${dailyTotals.length} data points available`,
       },
       {
         name: 'Pattern Consistency',
-        impact: seasonalPatterns.some((p) => p.stdDev > p.averageKg * 0.5) ? 'negative' : 'positive',
+        impact: seasonalPatterns.some((p) => p.stdDev > p.averageKg * 0.5)
+          ? 'negative'
+          : 'positive',
         description: 'Day-of-week pattern stability',
       },
       {

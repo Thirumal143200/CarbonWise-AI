@@ -5,10 +5,19 @@
 export const CARBON_CATEGORIES = ['transportation', 'home', 'lifestyle', 'food'] as const;
 
 export const SUBCATEGORIES = {
-  transportation: ['car', 'bike', 'bus', 'metro', 'train', 'flight'] as const,
+  transportation: [
+    'car',
+    'bike',
+    'bus',
+    'metro',
+    'train',
+    'flight',
+    'electric_car',
+    'walking',
+  ] as const,
   home: ['electricity', 'lpg_gas', 'water'] as const,
   lifestyle: ['shopping', 'plastic', 'electronics'] as const,
-  food: ['vegetarian', 'vegan', 'non_vegetarian'] as const,
+  food: ['vegetarian', 'vegan', 'non_vegetarian', 'pescatarian', 'poultry'] as const,
 } as const;
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -25,6 +34,8 @@ export const SUBCATEGORY_LABELS: Record<string, string> = {
   metro: 'Metro / Subway',
   train: 'Train',
   flight: 'Flight',
+  electric_car: 'Electric Car',
+  walking: 'Walking',
   electricity: 'Electricity',
   lpg_gas: 'LPG / Gas',
   water: 'Water Usage',
@@ -34,6 +45,8 @@ export const SUBCATEGORY_LABELS: Record<string, string> = {
   vegetarian: 'Vegetarian Meal',
   vegan: 'Vegan Meal',
   non_vegetarian: 'Non-Vegetarian Meal',
+  pescatarian: 'Pescatarian Meal',
+  poultry: 'Poultry Meal',
 };
 
 export const CATEGORY_ICONS: Record<string, string> = {
@@ -50,6 +63,8 @@ export const SUBCATEGORY_ICONS: Record<string, string> = {
   metro: '🚇',
   train: '🚆',
   flight: '✈️',
+  electric_car: '⚡🚗',
+  walking: '🚶',
   electricity: '⚡',
   lpg_gas: '🔥',
   water: '💧',
@@ -59,6 +74,8 @@ export const SUBCATEGORY_ICONS: Record<string, string> = {
   vegetarian: '🥗',
   vegan: '🌱',
   non_vegetarian: '🥩',
+  pescatarian: '🐟',
+  poultry: '🍗',
 };
 
 /** National average carbon footprint (kg CO₂e per year) */
@@ -79,6 +96,8 @@ export const SUBCATEGORY_UNITS: Record<string, string> = {
   metro: 'km',
   train: 'km',
   flight: 'km',
+  electric_car: 'km',
+  walking: 'km',
   electricity: 'kWh',
   lpg_gas: 'kg',
   water: 'liters',
@@ -88,4 +107,6 @@ export const SUBCATEGORY_UNITS: Record<string, string> = {
   vegetarian: 'meals',
   vegan: 'meals',
   non_vegetarian: 'meals',
+  pescatarian: 'meals',
+  poultry: 'meals',
 };

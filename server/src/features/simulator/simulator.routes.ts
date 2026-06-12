@@ -9,6 +9,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.post('/run', validate(simulatorController.simulationSchema), simulatorController.simulate);
+router.post('/', validate(simulatorController.simulationSchema), simulatorController.simulate);
 router.get('/templates', simulatorController.templates);
 router.get('/history', simulatorController.history);
 

@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 
 import { api } from '../../lib/api';
 
-
 export function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,8 +22,8 @@ export function GoalsPage() {
       setLoading(true);
       setError('');
       try {
-        const result = await api.get<Goal[]>('/goals');
-        setGoals(result);
+        const result = await api.get<{ goals: Goal[] }>('/goals');
+        setGoals(result.goals || []);
       } catch (err: unknown) {
         setError((err as { message?: string }).message || 'Failed to fetch carbon reduction goals');
       } finally {
@@ -50,13 +49,13 @@ export function GoalsPage() {
     setError('');
     try {
       const start_date = new Date().toISOString().split('T')[0];
-      const goal = await api.post<Goal>('/goals', {
+      const result = await api.post<{ goal: Goal }>('/goals', {
         title,
         target_reduction_pct: Number(targetReductionPct),
         start_date,
         end_date: endDate,
       });
-      setGoals((prev) => [goal, ...prev]);
+      setGoals((prev) => [result.goal, ...prev]);
       setIsModalOpen(false);
       setTitle('');
       setEndDate('');
@@ -80,7 +79,10 @@ export function GoalsPage() {
             Set and track carbon footprint reduction targets.
           </p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2 py-2.5 text-sm">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="btn-primary flex items-center gap-2 py-2.5 text-sm"
+        >
           <Plus className="w-4 h-4" />
           <span>New Target</span>
         </button>
@@ -135,8 +137,8 @@ export function GoalsPage() {
                       goal.status === 'completed'
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
                         : goal.status === 'failed'
-                        ? 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                        : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400'
                     }`}
                   >
                     {goal.status}
@@ -154,7 +156,8 @@ export function GoalsPage() {
                   <div>
                     <p className="text-[10px] text-surface-500 uppercase font-bold">Baseline</p>
                     <p className="text-lg font-bold text-surface-800 dark:text-white">
-                      {goal.baselineKg.toFixed(0)} <span className="text-xs font-normal text-surface-500">kg</span>
+                      {goal.baselineKg.toFixed(0)}{' '}
+                      <span className="text-xs font-normal text-surface-500">kg</span>
                     </p>
                   </div>
                   <div>
@@ -212,9 +215,16 @@ export function GoalsPage() {
                 </button>
               </div>
 
-              <form onSubmit={(e) => { void handleCreateGoal(e); }} className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  void handleCreateGoal(e);
+                }}
+                className="space-y-4"
+              >
                 <div className="space-y-1">
-                  <label className="input-label" htmlFor="goal-title">Goal Title</label>
+                  <label className="input-label" htmlFor="goal-title">
+                    Goal Title
+                  </label>
                   <input
                     type="text"
                     id="goal-title"
@@ -243,7 +253,9 @@ export function GoalsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="input-label" htmlFor="goal-end-date">End Target Date</label>
+                  <label className="input-label" htmlFor="goal-end-date">
+                    End Target Date
+                  </label>
                   <input
                     type="date"
                     id="goal-end-date"

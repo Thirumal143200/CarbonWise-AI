@@ -57,6 +57,20 @@ export const TRANSPORT_FACTORS: Record<string, EmissionFactor> = {
     description: 'Average flight per passenger (economy)',
     source: 'DEFRA 2023',
   },
+  electric_car: {
+    subcategory: 'electric_car',
+    factor: 0.05,
+    unit: 'km',
+    description: 'Electric vehicle (grid emissions proxy)',
+    source: 'EPA 2023',
+  },
+  walking: {
+    subcategory: 'walking',
+    factor: 0.0,
+    unit: 'km',
+    description: 'Walking (zero direct emissions)',
+    source: 'IPCC',
+  },
 };
 
 /**
@@ -138,6 +152,20 @@ export const FOOD_FACTORS: Record<string, EmissionFactor> = {
     description: 'Average non-vegetarian meal (with beef)',
     source: 'Our World in Data',
   },
+  pescatarian: {
+    subcategory: 'pescatarian',
+    factor: 1.9,
+    unit: 'meals',
+    description: 'Average pescatarian meal',
+    source: 'Our World in Data',
+  },
+  poultry: {
+    subcategory: 'poultry',
+    factor: 2.4,
+    unit: 'meals',
+    description: 'Average poultry-only meal',
+    source: 'Our World in Data',
+  },
 };
 
 /**
@@ -160,11 +188,7 @@ export function getEmissionFactor(
 /**
  * Calculate emissions in kg CO₂e
  */
-export function calculateEmissions(
-  category: string,
-  subcategory: string,
-  amount: number,
-): number {
+export function calculateEmissions(category: string, subcategory: string, amount: number): number {
   const factor = getEmissionFactor(category, subcategory);
   if (!factor) {
     throw new Error(`Unknown emission factor: ${category}/${subcategory}`);

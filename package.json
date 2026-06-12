@@ -31,7 +31,7 @@
     "format": "prettier --check \"**/*.{ts,tsx,json,md,css}\"",
     "format:fix": "prettier --write \"**/*.{ts,tsx,json,md,css}\"",
     "type-check": "npm run type-check --workspaces --if-present",
-    "prepare": "husky install",
+    "prepare": "husky install || true",
     "db:migrate": "npm run db:migrate --workspace=server",
     "db:seed": "npm run db:seed --workspace=server"
   },

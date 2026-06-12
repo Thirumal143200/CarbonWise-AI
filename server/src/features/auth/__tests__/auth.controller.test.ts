@@ -1,12 +1,13 @@
 import express from 'express';
 import request from 'supertest';
 
-import { errorHandler , AppError } from '../../../middleware/error-handler.middleware';
+import { errorHandler, AppError } from '../../../middleware/error-handler.middleware';
 import authRoutes from '../auth.routes';
 import * as authService from '../auth.service';
 
 // ---- Mock the service layer ----
 jest.mock('../auth.service');
+jest.mock('uuid', () => ({ v4: () => 'test-uuid-v4' }));
 jest.mock('../../../config/env', () => ({
   env: {
     RATE_LIMIT_WINDOW_MS: 900000,
@@ -73,10 +74,7 @@ describe('Auth Controller (Integration)', () => {
         },
       });
 
-      const res = await request(app)
-        .post('/api/v1/auth/signup')
-        .send(validBody)
-        .expect(201);
+      const res = await request(app).post('/api/v1/auth/signup').send(validBody).expect(201);
 
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.email).toBe('test@example.com');
@@ -92,9 +90,7 @@ describe('Auth Controller (Integration)', () => {
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
       expect(res.body.error.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ field: 'email' }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ field: 'email' })]),
       );
     });
 
@@ -129,10 +125,7 @@ describe('Auth Controller (Integration)', () => {
         new AppError(409, 'CONFLICT', 'An account with this email already exists'),
       );
 
-      const res = await request(app)
-        .post('/api/v1/auth/signup')
-        .send(validBody)
-        .expect(409);
+      const res = await request(app).post('/api/v1/auth/signup').send(validBody).expect(409);
 
       expect(res.body.error.code).toBe('CONFLICT');
     });
@@ -173,10 +166,7 @@ describe('Auth Controller (Integration)', () => {
         },
       });
 
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send(validBody)
-        .expect(200);
+      const res = await request(app).post('/api/v1/auth/login').send(validBody).expect(200);
 
       expect(res.body.success).toBe(true);
       expect(res.body.data.tokens).toBeDefined();
@@ -187,10 +177,7 @@ describe('Auth Controller (Integration)', () => {
         new AppError(401, 'UNAUTHORIZED', 'Invalid email or password'),
       );
 
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send(validBody)
-        .expect(401);
+      const res = await request(app).post('/api/v1/auth/login').send(validBody).expect(401);
 
       expect(res.body.error.message).toBe('Invalid email or password');
     });
@@ -222,10 +209,7 @@ describe('Auth Controller (Integration)', () => {
     });
 
     it('should return 400 on missing refreshToken', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/refresh')
-        .send({})
-        .expect(400);
+      const res = await request(app).post('/api/v1/auth/refresh').send({}).expect(400);
 
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
@@ -271,9 +255,16 @@ describe('Auth Controller (Integration)', () => {
     it('should always return { success, data, error } shape on success', async () => {
       mockAuthService.login.mockResolvedValue({
         user: {
-          id: '1', email: 'a@b.com', name: 'N', avatarUrl: null,
-          ecoScore: 0, xp: 0, level: 1, leaderboardOptIn: false,
-          createdAt: '', updatedAt: '',
+          id: '1',
+          email: 'a@b.com',
+          name: 'N',
+          avatarUrl: null,
+          ecoScore: 0,
+          xp: 0,
+          level: 1,
+          leaderboardOptIn: false,
+          createdAt: '',
+          updatedAt: '',
         },
         tokens: { accessToken: 'a', refreshToken: 'r' },
       });
@@ -289,10 +280,7 @@ describe('Auth Controller (Integration)', () => {
     });
 
     it('should always return { success, data, error } shape on error', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/signup')
-        .send({ email: 'bad' })
-        .expect(400);
+      const res = await request(app).post('/api/v1/auth/signup').send({ email: 'bad' }).expect(400);
 
       expect(res.body).toHaveProperty('success', false);
       expect(res.body).toHaveProperty('data', null);

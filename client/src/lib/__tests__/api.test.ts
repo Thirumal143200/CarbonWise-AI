@@ -6,6 +6,8 @@ describe('ApiClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     api.setAccessToken(null);
+    // Mark as rehydrated so requests don't block during tests
+    api.markRehydrated(null);
   });
 
   it('should manage access tokens correctly', () => {
@@ -17,6 +19,7 @@ describe('ApiClient', () => {
   it('should inject headers correctly on request', async () => {
     const mockResponse = {
       ok: true,
+      status: 200,
       headers: {
         get: (name: string) => {
           if (name === 'content-type') return 'application/json';
@@ -26,7 +29,9 @@ describe('ApiClient', () => {
       json: () => Promise.resolve({ data: { success: true } }),
     };
 
-    const fetchSpy = vi.spyOn(window, 'fetch').mockResolvedValue(mockResponse as unknown as Response);
+    const fetchSpy = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValue(mockResponse as unknown as Response);
 
     api.setAccessToken('my-token');
     const result = await api.get('/test-endpoint');
@@ -37,15 +42,16 @@ describe('ApiClient', () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer my-token',
+          Authorization: 'Bearer my-token',
         }),
-      })
+      }),
     );
   });
 
   it('should parse non-JSON responses successfully', async () => {
     const mockResponse = {
       ok: true,
+      status: 200,
       headers: {
         get: (name: string) => {
           if (name === 'content-type') return 'application/pdf';
@@ -87,13 +93,14 @@ describe('ApiClient', () => {
           return null;
         },
       },
-      json: () => Promise.resolve({
-        error: {
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: [{ field: 'email', message: 'Invalid email' }],
-        },
-      }),
+      json: () =>
+        Promise.resolve({
+          error: {
+            message: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            details: [{ field: 'email', message: 'Invalid email' }],
+          },
+        }),
     };
 
     vi.spyOn(window, 'fetch').mockResolvedValue(mockErrorResponse as unknown as Response);
@@ -113,26 +120,29 @@ describe('ApiClient', () => {
   it('should support put and delete verbs', async () => {
     const mockResponse = {
       ok: true,
+      status: 200,
       headers: {
         get: (_name: string) => 'application/json',
       },
       json: () => Promise.resolve({ data: 'updated' }),
     };
 
-    const fetchSpy = vi.spyOn(window, 'fetch').mockResolvedValue(mockResponse as unknown as Response);
+    const fetchSpy = vi
+      .spyOn(window, 'fetch')
+      .mockResolvedValue(mockResponse as unknown as Response);
 
     const putResult = await api.put('/update', { foo: 'bar' });
     expect(putResult).toBe('updated');
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ foo: 'bar' }) })
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ foo: 'bar' }) }),
     );
 
     const deleteResult = await api.delete('/delete');
     expect(deleteResult).toBe('updated');
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ method: 'DELETE' })
+      expect.objectContaining({ method: 'DELETE' }),
     );
   });
 });

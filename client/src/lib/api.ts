@@ -1,14 +1,49 @@
 import type { ApiResponse, ApiErrorResponse } from '@carbonwise/shared';
 
-const API_BASE = (import.meta.env as Record<string, string | undefined>).VITE_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE =
+  (import.meta.env as Record<string, string | undefined>).VITE_API_URL ||
+  'http://localhost:3001/api/v1';
 
 /**
  * Type-safe API client with automatic token management.
- * Handles access token injection, 401 refresh, and error parsing.
+ * Handles access token injection, 401 refresh with retry, and error parsing.
+ *
+ * Key features:
+ * - Centralized token manager (in-memory accessToken + refresh callback)
+ * - Automatic 401 interception → refresh → retry (once)
+ * - Queue concurrent requests during a refresh to avoid duplicate refresh calls
+ * - Rehydration-aware: waits for Zustand persist to restore tokens before first request
  */
+
+type RefreshFunction = () => Promise<string | null>;
 
 class ApiClient {
   private accessToken: string | null = null;
+  private refreshFn: RefreshFunction | null = null;
+
+  // Prevents multiple concurrent refresh calls
+  private refreshPromise: Promise<string | null> | null = null;
+
+  // Rehydration gate: resolves once Zustand persist has restored tokens
+  private rehydrated = false;
+  private rehydrateResolve: (() => void) | null = null;
+  private rehydratePromise: Promise<void>;
+
+  constructor() {
+    this.rehydratePromise = new Promise<void>((resolve) => {
+      this.rehydrateResolve = resolve;
+    });
+  }
+
+  /** Called by Zustand onRehydrateStorage to set initial token and unblock requests */
+  markRehydrated(token: string | null): void {
+    this.accessToken = token;
+    this.rehydrated = true;
+    if (this.rehydrateResolve) {
+      this.rehydrateResolve();
+      this.rehydrateResolve = null;
+    }
+  }
 
   setAccessToken(token: string | null): void {
     this.accessToken = token;
@@ -16,6 +51,14 @@ class ApiClient {
 
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  /**
+   * Register a callback that performs the refresh-token exchange.
+   * Returns the new access token, or null if refresh failed.
+   */
+  setRefreshFunction(fn: RefreshFunction): void {
+    this.refreshFn = fn;
   }
 
   private getHeaders(): HeadersInit {
@@ -28,19 +71,53 @@ class ApiClient {
     return headers;
   }
 
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-  ): Promise<T> {
+  /**
+   * Attempt to refresh the access token. Deduplicates concurrent calls.
+   * Returns the new access token or null.
+   */
+  private async tryRefresh(): Promise<string | null> {
+    if (!this.refreshFn) return null;
+
+    // If a refresh is already in-flight, wait for it
+    if (this.refreshPromise !== null) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.refreshFn().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
+  }
+
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    // Wait for Zustand rehydration before first request
+    if (!this.rehydrated) {
+      await this.rehydratePromise;
+    }
+
     const url = `${API_BASE}${endpoint}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.getHeaders(),
-        ...(options.headers as Record<string, string> | undefined),
-      },
-    });
+    const doFetch = async (): Promise<Response> => {
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...this.getHeaders(),
+          ...(options.headers as Record<string, string> | undefined),
+        },
+      });
+    };
+
+    let response = await doFetch();
+
+    // --- 401 Interceptor: auto-refresh and retry once ---
+    if (response.status === 401 && this.refreshFn && !endpoint.startsWith('/auth/')) {
+      const newToken = await this.tryRefresh();
+      if (newToken) {
+        // Retry the original request with the fresh token
+        response = await doFetch();
+      }
+    }
 
     // Handle non-JSON responses (PDF downloads, etc.)
     const contentType = response.headers.get('content-type');

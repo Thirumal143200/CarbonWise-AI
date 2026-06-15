@@ -254,21 +254,6 @@ sequenceDiagram
    - Backend API is available at `http://localhost:3001`.
 
 ---
-
-## Assumptions
-
-- **Baseline Carbon Footprint**: A standard daily baseline of `12.87 kg CO₂` is used for comparison if a user has not logged any activities.
-- **Offset Equivalents**: Standardized conversions (e.g. 1 tree offsets `22 kg CO₂/year`, 1 domestic flight produces `150 kg CO₂`) are extracted from GHG Protocol and EPA datasets.
-- **Financial Estimations**: An average cost of `$0.15` per kg of carbon emitted is assumed to calculate utility and gasoline financial savings.
-
----
-
-## Future Enhancements
-
-- **Smart Meter Integration**: Auto-import daily electricity and gas logs using utility API integrations.
-- **Gamified Achievements**: Expand user XP and Levels with monthly team-based challenges and digital badges.
-- **Predictive Anomalies**: Highlight unusual emission spikes (e.g., heating system malfunctions) in user energy logs.
-
 ---
 
 ## Competition Highlights

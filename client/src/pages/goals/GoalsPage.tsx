@@ -51,9 +51,9 @@ export function GoalsPage() {
       const start_date = new Date().toISOString().split('T')[0];
       const result = await api.post<{ goal: Goal }>('/goals', {
         title,
-        target_reduction_pct: Number(targetReductionPct),
-        start_date,
-        end_date: endDate,
+        targetReductionPct: Number(targetReductionPct),
+        startDate: start_date,
+        endDate: endDate,
       });
       setGoals((prev) => [result.goal, ...prev]);
       setIsModalOpen(false);

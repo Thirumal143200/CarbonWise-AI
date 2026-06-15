@@ -18,26 +18,11 @@ const router = Router();
 
 // ---- Public routes (rate-limited) ----
 
-router.post(
-  '/signup',
-  authRateLimiter,
-  validate(signupSchema),
-  authController.signup,
-);
+router.post('/signup', authRateLimiter, validate(signupSchema), authController.signup);
 
-router.post(
-  '/login',
-  authRateLimiter,
-  validate(loginSchema),
-  authController.login,
-);
+router.post('/login', authRateLimiter, validate(loginSchema), authController.login);
 
-router.post(
-  '/refresh',
-  authRateLimiter,
-  validate(refreshTokenSchema),
-  authController.refresh,
-);
+router.post('/refresh', validate(refreshTokenSchema), authController.refresh);
 
 router.post(
   '/forgot-password',
@@ -57,18 +42,8 @@ router.post(
 
 router.get('/me', authMiddleware, authController.getProfile);
 
-router.put(
-  '/profile',
-  authMiddleware,
-  validate(updateProfileSchema),
-  authController.updateProfile,
-);
+router.put('/profile', authMiddleware, validate(updateProfileSchema), authController.updateProfile);
 
-router.post(
-  '/logout',
-  authMiddleware,
-  validate(refreshTokenSchema),
-  authController.logout,
-);
+router.post('/logout', authMiddleware, validate(refreshTokenSchema), authController.logout);
 
 export default router;

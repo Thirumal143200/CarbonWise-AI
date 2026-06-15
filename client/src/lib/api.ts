@@ -111,7 +111,14 @@ class ApiClient {
     let response = await doFetch();
 
     // --- 401 Interceptor: auto-refresh and retry once ---
-    if (response.status === 401 && this.refreshFn && !endpoint.startsWith('/auth/')) {
+    const bypassAuthEndpoints = [
+      '/auth/login',
+      '/auth/signup',
+      '/auth/refresh',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+    ];
+    if (response.status === 401 && this.refreshFn && !bypassAuthEndpoints.includes(endpoint)) {
       const newToken = await this.tryRefresh();
       if (newToken) {
         // Retry the original request with the fresh token

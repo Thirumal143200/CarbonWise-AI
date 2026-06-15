@@ -7,6 +7,17 @@ import * as authService from '../auth.service';
 
 // ---- Mock Dependencies ----
 
+jest.mock('bcrypt', () => {
+  const mockBcrypt = {
+    hash: jest.fn().mockResolvedValue('$2b$12$mockedpassword'),
+    compare: jest.fn().mockResolvedValue(true),
+  };
+  return {
+    __esModule: true,
+    default: mockBcrypt,
+    ...mockBcrypt,
+  };
+});
 jest.mock('../auth.repository');
 jest.mock('../../../utils/token');
 jest.mock('../../../config/env', () => ({
@@ -111,7 +122,7 @@ describe('AuthService', () => {
       await authService.signup('new@example.com', 'Password1!', 'New User');
 
       expect(hashSpy).toHaveBeenCalledWith('Password1!', 12);
-      hashSpy.mockRestore();
+      hashSpy.mockClear();
     });
   });
 
@@ -146,9 +157,7 @@ describe('AuthService', () => {
       mockAuthRepo.findUserByEmail.mockResolvedValue(mockUserRow);
       jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
 
-      await expect(
-        authService.login('test@example.com', 'WrongPassword1!'),
-      ).rejects.toMatchObject({
+      await expect(authService.login('test@example.com', 'WrongPassword1!')).rejects.toMatchObject({
         statusCode: 401,
         message: 'Invalid email or password',
       });
@@ -249,10 +258,7 @@ describe('AuthService', () => {
 
       await authService.resetPassword('reset-token', 'NewPassword1!');
 
-      expect(mockAuthRepo.updateUserPassword).toHaveBeenCalledWith(
-        'user-123',
-        expect.any(String),
-      );
+      expect(mockAuthRepo.updateUserPassword).toHaveBeenCalledWith('user-123', expect.any(String));
       expect(mockAuthRepo.markPasswordResetTokenUsed).toHaveBeenCalledWith('hashed-reset');
       expect(mockAuthRepo.revokeAllUserRefreshTokens).toHaveBeenCalledWith('user-123');
     });

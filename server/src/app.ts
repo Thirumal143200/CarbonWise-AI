@@ -2,7 +2,6 @@ import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 
 import { corsOptions } from './config/cors';
-import { checkDatabaseHealth } from './config/database';
 
 // ---- Feature Routes ----
 import aiRoutes from './features/ai/ai.routes';
@@ -26,15 +25,29 @@ import { securityHeaders } from './middleware/security.middleware';
  * Assembles the middleware chain and mounts routes.
  *
  * Middleware order matters:
- * 1. Security headers (Helmet)
- * 2. CORS
- * 3. Body parsing
- * 4. Rate limiting
- * 5. Routes
- * 6. Error handler (must be last)
+ * 1. Health check (lightweight, runs before rate limiting/CORS/body parsing)
+ * 2. Trust proxy (must be set BEFORE applying rate limiting middlewares)
+ * 3. Security headers (Helmet)
+ * 4. CORS
+ * 5. Body parsing
+ * 6. Rate limiting
+ * 7. Routes
+ * 8. Error handler (must be last)
  */
 export function createApp(): express.Application {
   const app = express();
+
+  // ---- Trust proxy (for Render/Vercel behind load balancer) ----
+  // Must be set BEFORE rate limiters so they read client IP correctly behind load balancer
+  app.set('trust proxy', 1);
+
+  // ---- Health Check (Lightweight, returns 200 immediately, immune to rate limiting/CORS issues) ----
+  app.get('/api/v1/health', (_req: Request, res: Response) => {
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   // ---- Security ----
   app.use(securityHeaders);
@@ -46,24 +59,6 @@ export function createApp(): express.Application {
 
   // ---- Rate Limiting ----
   app.use(generalRateLimiter);
-
-  // ---- Trust proxy (for Render/Vercel behind load balancer) ----
-  app.set('trust proxy', 1);
-
-  // ---- Health Check ----
-  app.get('/api/v1/health', (_req: Request, res: Response, next) => {
-    Promise.resolve().then(async () => {
-      const dbHealthy = await checkDatabaseHealth();
-      const status = dbHealthy ? 200 : 503;
-      res.status(status).json({
-        status: dbHealthy ? 'healthy' : 'unhealthy',
-        timestamp: new Date().toISOString(),
-        services: {
-          database: dbHealthy ? 'connected' : 'disconnected',
-        },
-      });
-    }).catch(next);
-  });
 
   // ---- API Routes ----
   app.use('/api/v1/auth', authRoutes);

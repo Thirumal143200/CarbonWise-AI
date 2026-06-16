@@ -2,7 +2,6 @@ import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 
 import { corsOptions } from './config/cors';
-import { checkDatabaseHealth } from './config/database';
 
 // ---- Feature Routes ----
 import aiRoutes from './features/ai/ai.routes';

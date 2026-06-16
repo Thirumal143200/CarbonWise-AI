@@ -286,9 +286,6 @@ The platform maintains comprehensive test suites for both backend and frontend l
    ```bash
    npm run dev
    ```
-   - Frontend is available at `http://localhost:5173`.
-   - Backend API is available at `http://localhost:3001`.
-
 ---
 
 ## Assumptions & Constants
@@ -299,13 +296,7 @@ The platform maintains comprehensive test suites for both backend and frontend l
 
 ---
 
-## Future Enhancements
 
-- **Smart Meter Integration**: Auto-import daily electricity and gas logs using utility API integrations.
-- **Gamified Achievements**: Expand user XP and Levels with monthly team-based challenges and digital badges.
-- **Predictive Anomalies**: Highlight unusual emission spikes (e.g., heating system malfunctions) in user energy logs.
-
----
 
 ## Competition Highlights
 
@@ -316,8 +307,3 @@ The platform maintains comprehensive test suites for both backend and frontend l
 
 ---
 
-## Production Deployments
-
-- **Frontend Application (Vercel)**: [https://carbon-wise-ai-client.vercel.app](https://carbon-wise-ai-client.vercel.app)
-- **Backend API Service (Render)**: [https://carbonwise-ai-i3xp.onrender.com](https://carbonwise-ai-i3xp.onrender.com)
-- **Backend Health Endpoint**: [https://carbonwise-ai-i3xp.onrender.com/api/v1/health](https://carbonwise-ai-i3xp.onrender.com/api/v1/health)

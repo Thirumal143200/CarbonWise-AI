@@ -45,8 +45,9 @@ export function GoalsPage() {
 
     const timer = setTimeout(() => {
       const firstInput = modalRef.current?.querySelector('input, select, button, textarea');
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      firstInput?.focus();
+      if (firstInput instanceof HTMLElement) {
+        firstInput.focus();
+      }
     }, 100);
 
     const handleKeydown = (e: KeyboardEvent) => {

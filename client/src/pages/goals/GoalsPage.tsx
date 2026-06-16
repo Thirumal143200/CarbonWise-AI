@@ -1,7 +1,7 @@
 import type { Goal } from '@carbonwise/shared';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Plus, Calendar, Percent, AlertCircle, Sparkles } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { api } from '../../lib/api';
 
@@ -17,13 +17,16 @@ export function GoalsPage() {
   const [endDate, setEndDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+  const openButtonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     async function fetchGoals() {
       setLoading(true);
       setError('');
       try {
-        const result = await api.get<{ goals: Goal[] }>('/goals');
-        setGoals(result.goals || []);
+        const data = await api.get<{ goals: Goal[] }>('/goals');
+        setGoals(data.goals);
       } catch (err: unknown) {
         setError((err as { message?: string }).message || 'Failed to fetch carbon reduction goals');
       } finally {
@@ -33,14 +36,54 @@ export function GoalsPage() {
     void fetchGoals();
   }, []);
 
+  // Focus trapping and keyboard accessibility in the modal
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isModalOpen) {
+    if (!isModalOpen) {
+      openButtonRef.current?.focus();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const firstInput = modalRef.current?.querySelector('input, select, button, textarea');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      firstInput?.focus();
+    }, 100);
+
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         setIsModalOpen(false);
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusables = modalRef.current.querySelectorAll(
+          'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, *[tabindex], *[contenteditable]',
+        );
+        const elements = Array.from(focusables) as HTMLElement[];
+        if (elements.length === 0) return;
+
+        const firstEl = elements[0];
+        const lastEl = elements[elements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            lastEl.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            firstEl.focus();
+            e.preventDefault();
+          }
+        }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeydown);
+    };
   }, [isModalOpen]);
 
   const handleCreateGoal = async (e: React.FormEvent) => {
@@ -48,14 +91,14 @@ export function GoalsPage() {
     setSubmitting(true);
     setError('');
     try {
-      const start_date = new Date().toISOString().split('T')[0];
-      const result = await api.post<{ goal: Goal }>('/goals', {
+      const startDateStr = new Date().toISOString().split('T')[0];
+      const data = await api.post<{ goal: Goal }>('/goals', {
         title,
         targetReductionPct: Number(targetReductionPct),
-        startDate: start_date,
-        endDate: endDate,
+        startDate: startDateStr,
+        endDate,
       });
-      setGoals((prev) => [result.goal, ...prev]);
+      setGoals((prev) => [data.goal, ...prev]);
       setIsModalOpen(false);
       setTitle('');
       setEndDate('');
@@ -80,6 +123,7 @@ export function GoalsPage() {
           </p>
         </div>
         <button
+          ref={openButtonRef}
           onClick={() => setIsModalOpen(true)}
           className="btn-primary flex items-center gap-2 py-2.5 text-sm"
         >
@@ -192,6 +236,7 @@ export function GoalsPage() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
+              ref={modalRef}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -262,6 +307,7 @@ export function GoalsPage() {
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     required
+                    min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                     className="input-field"
                   />
                 </div>

@@ -63,79 +63,102 @@ const chatSchema = z.object({
 
 // ---- Controllers ----
 
-export const generateRecommendation = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const userId = req.userId!;
-  const { type } = req.body as { type: string };
+export const generateRecommendation = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const userId = req.userId!;
+    const { type } = req.body as { type: string };
 
-  // Fetch user's recent carbon data for context
-  const recentEntries = await carbonRepo.getRecentEntries(userId, 20);
-  const categorySummary = await carbonRepo.getCategorySummary(userId);
-
-  const contextData = {
-    recentEntries: recentEntries.map((e) => ({
-      category: e.category,
-      subcategory: e.subcategory,
-      emissionsKg: e.emissions_kg,
-      date: e.entry_date,
-    })),
-    breakdown: categorySummary.map((c) => ({
-      category: c.category,
-      totalKg: c.total_kg,
-    })),
-  };
-
-  const prompts: Record<string, string> = {
-    weekly_plan: `Based on this user's carbon footprint data: ${JSON.stringify(contextData)}, create a personalized weekly sustainability plan. Return a JSON object with a "title", "days" array (each with "day", "action", "impact"), and "weeklyTotal".`,
-    reduction_advice: `Based on this user's carbon footprint data: ${JSON.stringify(contextData)}, provide personalized carbon reduction recommendations. Return a JSON object with a "recommendations" array (each with "title", "description", "impact" (high/medium/low), "category").`,
-    behavioral_insight: `Analyze this user's carbon footprint data: ${JSON.stringify(contextData)}. Identify behavioral patterns and suggest changes. Return a JSON object with "insights" array (each with "pattern", "suggestion", "potentialSavingsKg").`,
-  };
-
-  const prompt = prompts[type] ?? prompts.reduction_advice!;
-  const result = await generateContent(prompt);
-
-  await storeRecommendation(userId, prompt, result.text, type);
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(result.text);
-  } catch {
-    parsed = { raw: result.text };
-  }
-
-  sendSuccess(res, { recommendation: parsed, type });
-});
-
-export const listRecommendations = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const userId = req.userId!;
-  const type = req.query.type as string | undefined;
-  const limit = Number(req.query.limit) || 10;
-
-  const recommendations = await getRecommendations(userId, type, limit);
-
-  sendSuccess(res, {
-    recommendations: recommendations.map((r) => {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(r.response);
-      } catch {
-        parsed = { raw: r.response };
+    // Check database cache first (1 hour expiry)
+    const cached = await getRecommendations(userId, type, 1);
+    if (cached.length > 0) {
+      const rec = cached[0]!;
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      if (new Date(rec.created_at) > oneHourAgo) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(rec.response);
+        } catch {
+          parsed = { raw: rec.response };
+        }
+        sendSuccess(res, { recommendation: parsed, type, cached: true });
+        return;
       }
-      return {
-        id: r.id,
-        type: r.recommendation_type,
-        content: parsed,
-        createdAt: r.created_at.toISOString(),
-      };
-    }),
-  });
-});
+    }
+
+    // Fetch user's recent carbon data for context
+    const recentEntries = await carbonRepo.getRecentEntries(userId, 20);
+    const categorySummary = await carbonRepo.getCategorySummary(userId);
+
+    const contextData = {
+      recentEntries: recentEntries.map((e) => ({
+        category: e.category,
+        subcategory: e.subcategory,
+        emissionsKg: e.emissions_kg,
+        date: e.entry_date,
+      })),
+      breakdown: categorySummary.map((c) => ({
+        category: c.category,
+        totalKg: c.total_kg,
+      })),
+    };
+
+    const prompts: Record<string, string> = {
+      weekly_plan: `Based on this user's carbon footprint data: ${JSON.stringify(contextData)}, create a personalized weekly sustainability plan. Return a JSON object with a "title", "days" array (each with "day", "action", "impact"), and "weeklyTotal".`,
+      reduction_advice: `Based on this user's carbon footprint data: ${JSON.stringify(contextData)}, provide personalized carbon reduction recommendations. Return a JSON object with a "recommendations" array (each with "title", "description", "impact" (high/medium/low), "category").`,
+      behavioral_insight: `Analyze this user's carbon footprint data: ${JSON.stringify(contextData)}. Identify behavioral patterns and suggest changes. Return a JSON object with "insights" array (each with "pattern", "suggestion", "potentialSavingsKg").`,
+    };
+
+    const prompt = prompts[type] ?? prompts.reduction_advice!;
+    const result = await generateContent(prompt);
+
+    await storeRecommendation(userId, prompt, result.text, type);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(result.text);
+    } catch {
+      parsed = { raw: result.text };
+    }
+
+    sendSuccess(res, { recommendation: parsed, type, cached: false });
+  },
+);
+
+export const listRecommendations = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const userId = req.userId!;
+    const type = req.query.type as string | undefined;
+    const limit = Number(req.query.limit) || 10;
+
+    const recommendations = await getRecommendations(userId, type, limit);
+
+    sendSuccess(res, {
+      recommendations: recommendations.map((r) => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(r.response);
+        } catch {
+          parsed = { raw: r.response };
+        }
+        return {
+          id: r.id,
+          type: r.recommendation_type,
+          content: parsed,
+          createdAt: r.created_at.toISOString(),
+        };
+      }),
+    });
+  },
+);
 
 export const chat = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const userId = req.userId!;
   const { message } = req.body as { message: string };
 
   const recentEntries = await carbonRepo.getRecentEntries(userId, 10);
-  const context = recentEntries.map((e) => `${e.category}/${e.subcategory}: ${e.emissions_kg}kg`).join(', ');
+  const context = recentEntries
+    .map((e) => `${e.category}/${e.subcategory}: ${e.emissions_kg}kg`)
+    .join(', ');
 
   const prompt = `You are CarbonWise AI, a friendly sustainability coach. The user's recent carbon data: [${context}]. User message: "${message}". Respond helpfully about sustainability and carbon reduction. Keep response under 200 words.`;
 

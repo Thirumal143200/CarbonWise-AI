@@ -142,9 +142,11 @@ export const useAuthStore = create<AuthState>()(
             });
 
             if (!response.ok) {
-              // Refresh failed — force logout
-              api.setAccessToken(null);
-              useAuthStore.setState({ user: null, tokens: null, isAuthenticated: false });
+              // Only force logout on invalid token errors (400, 401, 403)
+              if ([400, 401, 403].includes(response.status)) {
+                api.setAccessToken(null);
+                useAuthStore.setState({ user: null, tokens: null, isAuthenticated: false });
+              }
               return null;
             }
 
@@ -155,10 +157,9 @@ export const useAuthStore = create<AuthState>()(
             useAuthStore.setState({ tokens: newTokens });
 
             return newTokens.accessToken;
-          } catch {
-            // Network failure during refresh — force logout
-            api.setAccessToken(null);
-            useAuthStore.setState({ user: null, tokens: null, isAuthenticated: false });
+          } catch (err) {
+            // Network failure during refresh — DO NOT force logout to preserve session
+            console.error('Network failure during token refresh:', err);
             return null;
           }
         });

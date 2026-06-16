@@ -18,7 +18,18 @@ export const createCarbonEntrySchema = z
     }),
     amount: z.number().positive('Amount must be positive').max(100000, 'Amount too large'),
     unit: z.string().min(1).max(20),
-    entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format'),
+    entryDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format')
+      .refine(
+        (val) => {
+          const todayStr = new Date().toISOString().split('T')[0]!;
+          return val <= todayStr;
+        },
+        {
+          message: 'Entry date cannot be in the future',
+        },
+      ),
     metadata: z.record(z.unknown()).optional(),
   })
   .refine(

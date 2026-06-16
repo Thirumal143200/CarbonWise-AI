@@ -3,6 +3,7 @@ import { NATIONAL_AVERAGES } from '@carbonwise/shared';
 import type { Request, Response } from 'express';
 
 import { asyncHandler } from '../../middleware/error-handler.middleware';
+import { query } from '../../config/database';
 import { sendSuccess } from '../../utils/response';
 import * as carbonRepo from '../carbon/carbon.repository';
 
@@ -10,6 +11,11 @@ import * as carbonRepo from '../carbon/carbon.repository';
  * Dashboard controller — aggregates data from multiple sources
  * for the main dashboard view. Uses parallel queries for efficiency.
  */
+
+interface DBEntry {
+  entry_date: string;
+  emissions_kg: number;
+}
 
 function getPeriodDates(period: 'daily' | 'weekly' | 'monthly' | 'annual'): {
   current: { from: string; to: string };
@@ -42,17 +48,27 @@ function getPeriodDates(period: 'daily' | 'weekly' | 'monthly' | 'annual'): {
   }
 }
 
-async function getPeriodSummary(
-  userId: string,
+function getPeriodSummaryInMemory(
+  entries: DBEntry[],
   period: 'daily' | 'weekly' | 'monthly' | 'annual',
-): Promise<PeriodSummary> {
+): PeriodSummary {
   const dates = getPeriodDates(period);
+  let currentTotal = 0;
+  let previousTotal = 0;
+  const currentUniqueDays = new Set<string>();
 
-  const [currentTotal, previousTotal, dailyTotals] = await Promise.all([
-    carbonRepo.getTotalEmissions(userId, dates.current.from, dates.current.to),
-    carbonRepo.getTotalEmissions(userId, dates.previous.from, dates.previous.to),
-    carbonRepo.getDailyTotals(userId, dates.current.from, dates.current.to),
-  ]);
+  for (const entry of entries) {
+    const dateStr = entry.entry_date;
+    const kg = Number(entry.emissions_kg);
+
+    if (dateStr >= dates.current.from && dateStr <= dates.current.to) {
+      currentTotal += kg;
+      currentUniqueDays.add(dateStr);
+    }
+    if (dateStr >= dates.previous.from && dateStr <= dates.previous.to) {
+      previousTotal += kg;
+    }
+  }
 
   const changePercent =
     previousTotal > 0 ? Math.round(((currentTotal - previousTotal) / previousTotal) * 100) : 0;
@@ -60,25 +76,41 @@ async function getPeriodSummary(
   return {
     totalKg: Math.round(currentTotal * 100) / 100,
     changePercent,
-    entryCount: dailyTotals.length,
+    entryCount: currentUniqueDays.size,
   };
 }
 
 export const overview = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const userId = req.userId!;
 
-  // Parallel fetch for all dashboard data
-  const [daily, weekly, monthly, annual, breakdown, recentEntries, annualTotal] = await Promise.all(
-    [
-      getPeriodSummary(userId, 'daily'),
-      getPeriodSummary(userId, 'weekly'),
-      getPeriodSummary(userId, 'monthly'),
-      getPeriodSummary(userId, 'annual'),
-      carbonRepo.getCategorySummary(userId),
-      carbonRepo.getRecentEntries(userId, 5),
-      carbonRepo.getTotalEmissions(userId),
-    ],
-  );
+  // Get dates range
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0]!;
+  const getFrom = (daysBack: number): string => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - daysBack);
+    return d.toISOString().split('T')[0]!;
+  };
+  const oldestDate = getFrom(730);
+
+  // Parallel fetch: optimized single query for entry history plus category, recent, and total
+  const [rawEntries, breakdown, recentEntries, annualTotal] = await Promise.all([
+    query<DBEntry>(
+      `SELECT entry_date::text as entry_date, emissions_kg
+       FROM carbon_entries
+       WHERE user_id = $1 AND entry_date >= $2 AND entry_date <= $3`,
+      [userId, oldestDate, todayStr],
+    ),
+    carbonRepo.getCategorySummary(userId),
+    carbonRepo.getRecentEntries(userId, 5),
+    carbonRepo.getTotalEmissions(userId),
+  ]);
+
+  // Compute summaries in memory (12 queries saved)
+  const daily = getPeriodSummaryInMemory(rawEntries, 'daily');
+  const weekly = getPeriodSummaryInMemory(rawEntries, 'weekly');
+  const monthly = getPeriodSummaryInMemory(rawEntries, 'monthly');
+  const annual = getPeriodSummaryInMemory(rawEntries, 'annual');
 
   const formattedBreakdown = breakdown.map((row: carbonRepo.CategorySummaryRow) => ({
     category: row.category as 'transportation' | 'home' | 'lifestyle' | 'food',
@@ -123,19 +155,6 @@ export const overview = asyncHandler(async (req: Request, res: Response): Promis
   sendSuccess(res, data);
 });
 
-function generateDateRange(fromStr: string, toStr: string): string[] {
-  const dates: string[] = [];
-  const start = new Date(fromStr);
-  const end = new Date(toStr);
-  const current = new Date(start);
-
-  while (current <= end) {
-    dates.push(current.toISOString().split('T')[0]!);
-    current.setDate(current.getDate() + 1);
-  }
-  return dates;
-}
-
 export const trends = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const userId = req.userId!;
   const period = (req.query.period as string) || 'monthly';
@@ -149,23 +168,11 @@ export const trends = asyncHandler(async (req: Request, res: Response): Promise<
 
   const dataPoints = await carbonRepo.getDailyTotals(userId, dates.from, dates.to);
 
-  // Generate complete list of dates and merge database totals
-  const dateStrings = generateDateRange(dates.from, dates.to);
-  const dataMap = new Map<string, number>();
-  for (const date of dateStrings) {
-    dataMap.set(date, 0);
-  }
-  for (const dp of dataPoints) {
-    dataMap.set(dp.entry_date, parseFloat(String(dp.total_kg)));
-  }
-
-  const mergedDataPoints = dateStrings.map((date) => ({
-    date,
-    totalKg: dataMap.get(date) || 0,
-  }));
-
   sendSuccess(res, {
     period,
-    dataPoints: mergedDataPoints,
+    dataPoints: dataPoints.map((d) => ({
+      date: d.entry_date,
+      totalKg: parseFloat(String(d.total_kg)),
+    })),
   });
 });

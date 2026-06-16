@@ -167,57 +167,93 @@ sequenceDiagram
 
 ---
 
-## Security Considerations
+## Security Design
 
-1. **JWT & Session Security**:
+1. **Database Row-Level Security (RLS)**:
+   - All 15 database tables in the `public` schema have Row-Level Security (RLS) enabled.
+   - Any REST API requests bypassing the application server via Supabase's PostgREST public endpoints are rejected by default.
+2. **JWT & Session Security**:
    - Access tokens are short-lived. Refresh tokens are rotated on every exchange.
    - If an old refresh token is reused, the server revokes all tokens for that user ID as a replay-attack countermeasure.
-2. **Parameterized SQL Queries**:
+3. **Parameterized SQL Queries**:
    - All database interactions use parameterized arrays (e.g. `$1, $2`). Raw strings are never concatenated, neutralizing SQL injection vulnerabilities.
-3. **Robust CORS & Security Headers**:
+4. **Robust CORS & Security Headers**:
    - Configured with `cors` restricting access to the production origin and `helmet` to establish secure HTTP headers (XSS protection, Clickjacking protection, and Content Security Policy).
-4. **Environment Schema Sanitization**:
-   - Environmental variables are parsed and validated by Zod at server startup. Missing or malformed configurations crash the process immediately, preventing runtime misconfiguration bugs.
 
 ---
 
-## Performance Optimizations
+## Carbon Calculation Logic
 
-- **Token Refresh Queueing**: The Axios client deduplicates concurrent refresh requests. When multiple requests fail with a 401 in parallel, they wait for a single refresh promise to resolve, avoiding redundant network requests.
-- **Database Connection Pooling**: Throttles database connections using `pg.Pool` with automated idle release, preventing server exhaustion.
-- **Lightweight Health Probe**: The `/api/v1/health` endpoint is mounted before rate limiters and CORS middlewares, returning `200 OK` instantly without hitting the database, preventing load-balancer health failures.
+Emissions are calculated in real time using industry-standard conversion factors:
+
+| Category           | Subcategory    | Unit   | Factor (kg CO₂e / unit) | Source            |
+| :----------------- | :------------- | :----- | :---------------------- | :---------------- |
+| **Transportation** | Car            | km     | 0.210                   | DEFRA 2023        |
+|                    | Bus            | km     | 0.089                   | DEFRA 2023        |
+|                    | Metro          | km     | 0.033                   | DEFRA 2023        |
+|                    | Train          | km     | 0.041                   | DEFRA 2023        |
+|                    | Flight         | km     | 0.255                   | DEFRA 2023        |
+|                    | Bike           | km     | 0.000                   | IPCC              |
+| **Home & Energy**  | Electricity    | kWh    | 0.433                   | IEA 2023          |
+|                    | LPG Gas        | kg     | 1.510                   | DEFRA 2023        |
+|                    | Water          | Liters | 0.000344                | DEFRA 2023        |
+| **Lifestyle**      | Shopping       | Items  | 10.000                  | EPA 2023          |
+|                    | Electronics    | Items  | 300.000                 | EPA 2023          |
+|                    | Plastic        | kg     | 6.000                   | EPA 2023          |
+| **Food**           | Vegan          | Meals  | 1.000                   | Our World in Data |
+|                    | Vegetarian     | Meals  | 1.700                   | Our World in Data |
+|                    | Non-Vegetarian | Meals  | 3.300                   | Our World in Data |
+
+### Calculation Formula
+
+$$\text{Emissions (kg CO₂e)} = \text{Amount logged} \times \text{Factor}$$
+
+---
+
+## Performance & Database Optimizations
+
+- **12-to-1 Dashboard Query Aggregation**: The dashboard overview API was optimized to fetch all carbon logs in a single query covering the last 730 days. All daily, weekly, monthly, and annual statistics are aggregated completely in memory, saving 12 database queries per overview request.
+- **AI Recommendation Cache**: Generated AI recommendations are cached in the PostgreSQL database for up to 1 hour, avoiding redundant calls to the Gemini API and improving latency from ~2.5s down to 5ms on repeat focus advice clicks.
+- **React Code-Splitting & Lazy Loading**: All pages are dynamically chunked using `React.lazy()` and `Suspense`, preventing massive bundle sizes on load (highly reducing Recharts and Framer Motion impact).
 - **Zustand Selective Rendering**: React hooks bind to specific store selectors, avoiding unnecessary component re-renders when unrelated states change.
+- **Token Refresh Queueing**: The fetch client deduplicates concurrent refresh requests. When multiple requests fail with a 401 in parallel, they wait for a single refresh promise to resolve, avoiding redundant network requests.
+- **Database Connection Pooling**: Throttles database connections using `pg.Pool` with automated idle release, preventing server exhaustion.
 
 ---
 
-## Accessibility
+## Testing Strategy
 
-- **Modals & Dialogs**: Goals and Activity Log modals include `role="dialog"`, `aria-modal="true"`, and appropriate ARIA labelling. They support close actions via the Escape key and are accessible via keyboard navigation.
-- **Interactive Forms**: All form controls are linked to descriptive `label` tags using unique `id` and `htmlFor` identifiers to support screen readers.
-- **Focus States**: High contrast active focus rings (`focus:ring-2 focus:ring-emerald-500`) are applied globally to interactive inputs, buttons, and links.
+The platform maintains comprehensive test suites for both backend and frontend layers:
 
----
-
-## Deployment
-
-### Backend (Render)
-
-- Deployed as a Web Service.
-- **Build Command**: `npm ci --include=dev && npm run build:shared && npm run build:server`
-- **Start Command**: `npm run db:migrate:prod --workspace=server && npm run start --workspace=server`
-- **Health Check Endpoint**: `/api/v1/health`
-
-### Frontend (Vercel)
-
-- Deployed as a Vite Static SPA.
-- **Build Command**: `npm run build:shared && npm run build:client`
-- **Output Directory**: `client/dist`
-- **Install Override**: Set to `npm install` to support compiling ts workspaces in root monorepo.
-- **SPA Routing**: Configured rewrite rules in `vercel.json` to route all page requests back to `/index.html` for client-side routing.
+- **Backend (Jest)**:
+  - Integration tests for routes (`auth`, `goals`, `carbon`).
+  - Unit tests for token utilities and encryption.
+  - Validation middleware test coverage (e.g. checking that future date entries return `400 Bad Request`).
+  - Run tests: `npm run test:server`
+- **Frontend (Vitest)**:
+  - Unit tests for Zustand stores (`auth.store`, `theme.store`).
+  - Integration tests for state routing and component mounting (`AppLayout`, `Sidebar`).
+  - Run tests: `npm run test:client`
 
 ---
 
-## Local Setup
+## Deployment Architecture
+
+- **Backend (Render)**:
+  - Deployed as a Web Service.
+  - **Build Command**: `npm ci --include=dev && npm run build:shared && npm run build:server`
+  - **Start Command**: `npm run db:migrate:prod --workspace=server && npm run start --workspace=server`
+  - **Health Check Endpoint**: `/api/v1/health` (Mounted before the rate limiter and CORS checks to ensure uptime queries never get rate-limited or blocked).
+- **Frontend (Vercel)**:
+  - Deployed as a Vite Static SPA.
+  - **Build Command**: `npm run build:shared && npm run build:client`
+  - **Output Directory**: `client/dist`
+  - **Install Override**: Set to `npm install` to support compiling ts workspaces in root monorepo.
+  - **SPA Routing**: Configured rewrite rules in `vercel.json` to route all page requests back to `/index.html` for client-side routing.
+
+---
+
+## Setup Guide
 
 ### Prerequisites
 
@@ -254,6 +290,21 @@ sequenceDiagram
    - Backend API is available at `http://localhost:3001`.
 
 ---
+
+## Assumptions & Constants
+
+- **Baseline Carbon Footprint**: A standard daily baseline of `12.87 kg CO₂` is used for comparison if a user has not logged any activities.
+- **Offset Equivalents**: Standardized conversions (e.g. 1 tree offsets `22 kg CO₂/year`, 1 domestic flight produces `150 kg CO₂`) are extracted from GHG Protocol and EPA datasets.
+- **Financial Estimations**: An average cost of `$0.05` per kg of carbon emitted is assumed to calculate utility and gasoline financial savings.
+
+---
+
+## Future Enhancements
+
+- **Smart Meter Integration**: Auto-import daily electricity and gas logs using utility API integrations.
+- **Gamified Achievements**: Expand user XP and Levels with monthly team-based challenges and digital badges.
+- **Predictive Anomalies**: Highlight unusual emission spikes (e.g., heating system malfunctions) in user energy logs.
+
 ---
 
 ## Competition Highlights

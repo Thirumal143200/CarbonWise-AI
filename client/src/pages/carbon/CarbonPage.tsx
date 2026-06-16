@@ -6,7 +6,7 @@ import {
   CATEGORY_ICONS,
 } from '@carbonwise/shared';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Leaf } from 'lucide-react';
+import { Plus, Trash2, Leaf, Pencil } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { api, ApiError } from '../../lib/api';
@@ -31,6 +31,7 @@ export function CarbonPage() {
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchEntries();
@@ -58,14 +59,22 @@ export function CarbonPage() {
     setError('');
     try {
       const unit = SUBCATEGORY_UNITS[subcategory] ?? 'kg';
-      await api.post('/carbon', {
+      const payload = {
         category,
         subcategory,
         amount: parseFloat(amount),
         unit,
         entryDate,
-      });
+      };
+
+      if (editingId) {
+        await api.put(`/carbon/${editingId}`, payload);
+      } else {
+        await api.post('/carbon', payload);
+      }
+
       setShowForm(false);
+      setEditingId(null);
       setAmount('');
       await fetchEntries();
     } catch (err) {
@@ -76,12 +85,22 @@ export function CarbonPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this carbon entry?')) return;
     try {
       await api.delete(`/carbon/${id}`);
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
       console.error(err);
     }
+  }
+
+  function handleEdit(entry: CarbonEntry) {
+    setCategory(entry.category);
+    setSubcategory(entry.subcategory);
+    setAmount(entry.amount.toString());
+    setEntryDate(entry.entryDate);
+    setEditingId(entry.id);
+    setShowForm(true);
   }
 
   if (loading) {
@@ -120,7 +139,9 @@ export function CarbonPage() {
           exit={{ opacity: 0, height: 0 }}
           className="glass-card p-6"
         >
-          <h2 className="text-lg font-semibold mb-4">New Carbon Entry</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            {editingId ? 'Edit Carbon Entry' : 'New Carbon Entry'}
+          </h2>
           <form
             onSubmit={(e) => {
               void handleSubmit(e);
@@ -208,11 +229,19 @@ export function CarbonPage() {
             </div>
 
             <div className="col-span-full flex gap-3 justify-end">
-              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingId(null);
+                  setAmount('');
+                }}
+                className="btn-secondary"
+              >
                 Cancel
               </button>
               <button type="submit" disabled={submitting || !amount} className="btn-primary">
-                {submitting ? 'Saving...' : 'Save Entry'}
+                {submitting ? 'Saving...' : editingId ? 'Update Entry' : 'Save Entry'}
               </button>
             </div>
           </form>
@@ -277,13 +306,22 @@ export function CarbonPage() {
                     <td className="px-4 py-3 text-right font-medium">
                       {entry.emissionsKg.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(entry)}
+                        className="btn-icon text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                        aria-label={`Edit entry from ${entry.entryDate}`}
+                        title="Edit Entry"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => {
                           void handleDelete(entry.id);
                         }}
                         className="btn-icon text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                         aria-label={`Delete entry from ${entry.entryDate}`}
+                        title="Delete Entry"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

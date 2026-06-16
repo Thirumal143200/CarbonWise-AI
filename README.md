@@ -313,3 +313,11 @@ The platform maintains comprehensive test suites for both backend and frontend l
 - **Production-Ready Session Recovery**: The Zustand persisted rehydration gate prevents the application from making unauthorized requests or flashing unauthenticated pages, establishing a highly polished user experience.
 - **Zero-Dependency Health Checks**: Bypasses rate-limiting, CORS, and database pools to return a fast health probe status, guaranteeing 100% platform uptime.
 - **Polished UX and Fallback Mechanics**: In case of Gemini API key exhaustion, the conversational fallback engine ensures that the AI Coach remains interactive and provides context-aware, variable suggestions.
+
+---
+
+## Production Deployments
+
+- **Frontend Application (Vercel)**: [https://carbon-wise-ai-client.vercel.app](https://carbon-wise-ai-client.vercel.app)
+- **Backend API Service (Render)**: [https://carbonwise-ai-i3xp.onrender.com](https://carbonwise-ai-i3xp.onrender.com)
+- **Backend Health Endpoint**: [https://carbonwise-ai-i3xp.onrender.com/api/v1/health](https://carbonwise-ai-i3xp.onrender.com/api/v1/health)

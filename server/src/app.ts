@@ -48,30 +48,10 @@ export function createApp(): express.Application {
   // Must be set BEFORE rate limiting to resolve correct client IP
   app.set('trust proxy', 1);
 
-  // ---- Health Check (always returns 200 — Render/Railway requirement) ----
-  // Mounted before rate limiting to prevent health check monitors from getting rate limited
   app.get('/api/v1/health', (_req: Request, res: Response) => {
-    checkDatabaseHealth()
-      .then((dbHealthy) => {
-        res.status(200).json({
-          status: 'ok',
-          timestamp: new Date().toISOString(),
-          uptime: process.uptime(),
-          services: {
-            database: dbHealthy ? 'connected' : 'degraded',
-          },
-        });
-      })
-      .catch(() => {
-        res.status(200).json({
-          status: 'ok',
-          timestamp: new Date().toISOString(),
-          uptime: process.uptime(),
-          services: {
-            database: 'degraded',
-          },
-        });
-      });
+    res.status(200).json({
+      status: 'healthy',
+    });
   });
 
   // ---- Rate Limiting ----

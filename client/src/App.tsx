@@ -34,10 +34,10 @@ const ReportsPage = lazy(() =>
 );
 
 const LoginPage = lazy(() =>
-  import('./pages/auth/AuthPages').then((m) => ({ default: m.LoginPage })),
+  import('./pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })),
 );
 const SignupPage = lazy(() =>
-  import('./pages/auth/AuthPages').then((m) => ({ default: m.SignupPage })),
+  import('./pages/auth/SignupPage').then((m) => ({ default: m.SignupPage })),
 );
 
 const LoadingFallback = () => (

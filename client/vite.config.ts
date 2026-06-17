@@ -14,6 +14,7 @@ export default defineConfig({
   ...({
     test: {
       environment: 'jsdom',
+      setupFiles: [path.resolve(__dirname, 'src/stores/__tests__/setup.ts')],
       coverage: {
         provider: 'v8',
         include: ['src/stores/**', 'src/lib/**', 'src/components/layout/AppLayout.tsx'],

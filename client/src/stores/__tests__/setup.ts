@@ -15,4 +15,6 @@ if (typeof window !== 'undefined') {
       dispatchEvent: vi.fn(),
     })),
   });
+
+  window.scrollTo = vi.fn();
 }

@@ -1,9 +1,10 @@
 import type { Goal } from '@carbonwise/shared';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Plus, Calendar, Percent, AlertCircle, Sparkles, Trash2 } from 'lucide-react';
+import { Target, Plus, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 import { api } from '../../lib/api';
+import { CreateGoalModal } from './components/CreateGoalModal';
+import { GoalCard } from './components/GoalCard';
 
 export function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -68,12 +69,12 @@ export function GoalsPage() {
 
         if (e.shiftKey) {
           if (document.activeElement === firstEl) {
-            lastEl.focus();
+            lastEl?.focus();
             e.preventDefault();
           }
         } else {
           if (document.activeElement === lastEl) {
-            firstEl.focus();
+            firstEl?.focus();
             e.preventDefault();
           }
         }
@@ -180,213 +181,29 @@ export function GoalsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {goals.map((goal) => (
-            <motion.div
+            <GoalCard
               key={goal.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card p-6 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-bold text-lg">{goal.title}</h3>
-                    <div className="flex items-center gap-1.5 text-xs text-surface-500 mt-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>
-                        {new Date(goal.startDate).toLocaleDateString()} -{' '}
-                        {new Date(goal.endDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase ${
-                        goal.status === 'completed'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                          : goal.status === 'failed'
-                            ? 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400'
-                      }`}
-                    >
-                      {goal.status}
-                    </span>
-                    <button
-                      onClick={() => void handleDeleteGoal(goal.id)}
-                      className="p-1 rounded text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/25 transition-colors"
-                      title="Delete Goal"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 py-4 my-4 bg-surface-50 dark:bg-surface-800/40 rounded-xl text-center">
-                  <div>
-                    <p className="text-[10px] text-surface-500 uppercase font-bold">Reduction</p>
-                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-0.5">
-                      <Percent className="w-4 h-4" />
-                      <span>{goal.targetReductionPct}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-surface-500 uppercase font-bold">Baseline</p>
-                    <p className="text-lg font-bold text-surface-800 dark:text-white">
-                      {goal.baselineKg.toFixed(0)}{' '}
-                      <span className="text-xs font-normal text-surface-500">kg</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-surface-500 uppercase font-bold">Goal Target</p>
-                    <p className="text-lg font-bold text-surface-800 dark:text-white">
-                      {(goal.baselineKg * (1 - goal.targetReductionPct / 100)).toFixed(0)}{' '}
-                      <span className="text-xs font-normal text-surface-500">kg</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-4 border-t border-surface-100 dark:border-surface-800">
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-surface-500">Goal Progress</span>
-                  <span className="text-emerald-500">{goal.progressPct}% Reduction Path</span>
-                </div>
-                <div className="w-full bg-surface-200 dark:bg-surface-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${goal.progressPct}%` }}
-                  />
-                </div>
-                {goal.status === 'active' ? (
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={() => void handleUpdateStatus(goal.id, 'completed')}
-                      className="flex-1 py-1.5 text-xs font-semibold rounded bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
-                    >
-                      Mark Done
-                    </button>
-                    <button
-                      onClick={() => void handleUpdateStatus(goal.id, 'failed')}
-                      className="flex-1 py-1.5 text-xs font-semibold rounded bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
-                    >
-                      Mark Failed
-                    </button>
-                  </div>
-                ) : (
-                  <div className="pt-2">
-                    <button
-                      onClick={() => void handleUpdateStatus(goal.id, 'active')}
-                      className="w-full py-1.5 text-xs font-semibold rounded bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-                    >
-                      Re-activate
-                    </button>
-                  </div>
-                )}
-              </div>
-            </motion.div>
+              goal={goal}
+              handleDeleteGoal={handleDeleteGoal}
+              handleUpdateStatus={handleUpdateStatus}
+            />
           ))}
         </div>
       )}
 
-      {/* Goal creation modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div
-              ref={modalRef}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="modal-title"
-              className="glass-card p-6 w-full max-w-md bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 space-y-6"
-            >
-              <div className="flex justify-between items-center">
-                <h2 id="modal-title" className="text-xl font-bold flex items-center gap-2">
-                  <Target className="w-5 h-5 text-emerald-500" />
-                  <span>Set New Target Goal</span>
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-surface-400 hover:text-surface-600"
-                  aria-label="Close modal"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form
-                onSubmit={(e) => {
-                  void handleCreateGoal(e);
-                }}
-                className="space-y-4"
-              >
-                <div className="space-y-1">
-                  <label className="input-label" htmlFor="goal-title">
-                    Goal Title
-                  </label>
-                  <input
-                    type="text"
-                    id="goal-title"
-                    placeholder="e.g. Cut Commute Footprint"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    className="input-field"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="input-label" htmlFor="goal-reduction">
-                    Target Reduction: {targetReductionPct}%
-                  </label>
-                  <input
-                    type="range"
-                    id="goal-reduction"
-                    min="5"
-                    max="50"
-                    step="5"
-                    value={targetReductionPct}
-                    onChange={(e) => setTargetReductionPct(Number(e.target.value))}
-                    className="w-full h-2 bg-surface-200 dark:bg-surface-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="input-label" htmlFor="goal-end-date">
-                    End Target Date
-                  </label>
-                  <input
-                    type="date"
-                    id="goal-end-date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    required
-                    min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                    className="input-field"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full btn-primary py-3 flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Activate Reduction Goal</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <CreateGoalModal
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+        title={title}
+        setTitle={setTitle}
+        targetReductionPct={targetReductionPct}
+        setTargetReductionPct={setTargetReductionPct}
+        endDate={endDate}
+        setEndDate={setEndDate}
+        submitting={submitting}
+        handleCreateGoal={handleCreateGoal}
+        modalRef={modalRef}
+      />
     </div>
   );
 }
